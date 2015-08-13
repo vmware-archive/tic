@@ -1,0 +1,2 @@
+capstone >= 3.0
+pefile >= 1.2.10
