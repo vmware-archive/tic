@@ -78,7 +78,7 @@ mnemonics = call,jmp,test,je,xor,test,setg,lea,mov,ret,movzx,movzx,sub,je,xor,te
 mnemonics = dec,mov,dec,mov,cdq,sub,add,sal,sal,lea,dec,mov,xor,dec,add,ror
 
 # RootkitRevealer is picked up by this sig
-[Microsoft : Visual Stuido 2002/2003]
+[Microsoft : Visual Studio 2002/2003]
 mnemonics = push,mov,push,push,push,mov,push,mov,sub,push,push,push,mov,call,xor,mov,mov,mov,and,mov,shl,add,mov,shr,mov,push,call,pop,test,jne
 
 [Google Toolchain]
