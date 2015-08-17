@@ -127,8 +127,6 @@ def main():
             for (address, size, mnemonic, op_str) in md.disasm_lite(data, 0x1000):
                             match.append(mnemonic.encode('utf-8').strip())
         
-            lsh = lsh_sims.LSHSimilarities([])
-        
             for s in signatures:
                 m = match
                 sig = signatures[s]['mnemonics']
