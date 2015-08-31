@@ -14,3 +14,6 @@ Contains various projects and presentations.
 
 ### mpesm
 mpesm (Mnemonic PE Signature Matching) is a tool to help identify multiple types of packers, cryptors, and compilers. It uses a take on Levenshtein distance to calculate similarity between the assembly mnemonics in the signature and the assembly mnemonics found in the PE file.
+
+### yara_signatures
+Various Yara signatures.
