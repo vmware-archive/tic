@@ -17,3 +17,6 @@ mpesm (Mnemonic PE Signature Matching) is a tool to help identify multiple types
 
 ### yara_signatures
 Various Yara signatures.
+
+### carbonblack_service
+A service to pull data from a Carbon Black server to CRITs.
