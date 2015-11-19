@@ -9,7 +9,7 @@ rule bit9_macho_launchctl_load
         $header1 = { ce fa ed fe }
         $header2 = { ca fe ba be }
         $string1 = "launchctl load"
-		$launch0 = "/Library/LaunchDaemons" nocase
+        $launch0 = "/Library/LaunchDaemons" nocase
         $launch1 = "/Library/LaunchAgents" nocase
     condition:
         ($header0 at 0 or $header1 at 0 or $header2 at 0) and $string1 and any of ($launch*)
