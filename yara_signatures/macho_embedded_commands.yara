@@ -1,4 +1,4 @@
-rule bit9_bit9_macho_launchctl_load
+rule bit9_macho_launchctl_load
 {
     meta:
         author = "ddorsey@bit9.com"
