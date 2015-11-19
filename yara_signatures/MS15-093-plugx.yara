@@ -1,6 +1,6 @@
 import "pe"
 
-rule ms15_093_plugx_dll_payload : TLPWHITE
+rule bit9_ms15_093_plugx_dll_payload : TLPWHITE
 {
     meta:
          author = "rnolen@bit9.com"
@@ -16,7 +16,7 @@ rule ms15_093_plugx_dll_payload : TLPWHITE
 }
 
 
-rule ms15_093_plugx_dropper : TLPWHITE
+rule bit9_ms15_093_plugx_dropper : TLPWHITE
 {
     meta:
         author = "rnolen@bit9.com"
