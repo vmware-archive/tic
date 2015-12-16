@@ -30,7 +30,7 @@ def tapered_levenshtein(s1, s2):
             substitutions = previous_row[j] + (c1 != c2) * taper
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
-    
+
     return previous_row[-1]
 
 def main():
@@ -42,10 +42,13 @@ def main():
     DIR_PROCESSING = False
     signatures = {}
     file_list = []
+    nos = 0
+    ep = 0
+    ep_ava = 0
 
     parser = ArgumentParser(description="Mnemonic PE Signature Matching")
     parser.add_argument("-n", "--num-mnem",
-                        dest="num_mnem", help="Use a lenght of 'n' mnemonics (default: " + str(NUM_MNEM) + ')') 
+                        dest="num_mnem", help="Use a lenght of 'n' mnemonics (default: " + str(NUM_MNEM) + ')')
     parser.add_argument("-s", "--signatures",
                         dest="sig_file", help="signature file to use (default: " + SIG_FILE + ')')
     parser.add_argument("-b", "--bytes",
@@ -67,13 +70,13 @@ def main():
         NUM_MNEM = args.num_mnem
     if args.verbose:
         VERBOSE = True
-   
+
     config = ConfigParser.RawConfigParser()
     config.read(SIG_FILE)
 
     if len(config.sections()) == 0:
         print "Error Reading from config file: %s, it's either empty or not present" %(SIG_FILE)
-        sys.exit(1)    
+        sys.exit(1)
     for s in config.sections():
         signatures[s] = {}
         signatures[s]['mnemonics'] = config.get(s, 'mnemonics').split(',')
@@ -91,8 +94,8 @@ def main():
         DIR_PROCESSING = True
     else:
         file_list.append(args.file[0])
-   
-    for f in file_list: 
+
+    for f in file_list:
         if VERBOSE:
             print '[*] Processing: ' + f
         try:
@@ -101,7 +104,7 @@ def main():
             if VERBOSE or DIR_PROCESSING:
                 sys.stderr.write("[*] Error with %s - %s\n" %(f, str(e)))
             continue
-        
+
         try:
             minor_linker = 0
             major_linker = 0
@@ -110,59 +113,62 @@ def main():
                 major_linker = pe.OPTIONAL_HEADER.MajorLinkerVersion
             except Exception as e:
                 pass
-            nos = pe.FILE_HEADER.NumberOfSections
-            
-            ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
-            ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
-            data = pe.get_memory_mapped_image()[ep:ep+BYTES]
-            #
-            # Determine if the file is 32bit or 64bit
-            #
-            mode = CS_MODE_32
-            if pe.OPTIONAL_HEADER.Magic == 0x20b:
-                mode = CS_MODE_64
+            if hasattr(pe, 'FILE_HEADER') and hasattr(pe.FILE_HEADER, 'NumberOfSections'):
+                nos = pe.FILE_HEADER.NumberOfSections
+            if hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'AddressOfEntryPoint'):
+                ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+            if hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'ImageBase') and ep > 0:
+                ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
+                data = pe.get_memory_mapped_image()[ep:ep+BYTES]
+                #
+                # Determine if the file is 32bit or 64bit
+                #
+                mode = CS_MODE_32
+                if pe.OPTIONAL_HEADER.Magic == 0x20b:
+                    mode = CS_MODE_64
 
-            md = Cs(CS_ARCH_X86, mode)
-            match = []
-            for (address, size, mnemonic, op_str) in md.disasm_lite(data, 0x1000):
-                            match.append(mnemonic.encode('utf-8').strip())
-        
-            for s in signatures:
-                m = match
-                sig = signatures[s]['mnemonics']
-                additional_info = []
-                if 'minor_linker' in signatures[s]:
-                    if minor_linker == signatures[s]['minor_linker']:
-                        additional_info.append('Minor Linker Version Match: True')
-                    else:
-                        additional_info.append('Minor Linker Version Match: False')
-                if 'major_linker' in signatures[s]:
-                    if major_linker == signatures[s]['major_linker']:
-                        additional_info.append('Major Linker Version Match: True')
-                    else:
-                        additional_info.append('Major Linker Version Match: False')
-                if 'numberofsections' in signatures[s]:
-                    if nos == signatures[s]['numberofsections']:
-                        additional_info.append('Number Of Sections Match: True')
-                    else:
-                        additional_info.append('Number Of Sections Match: False')
-                
-                if 'num_mnemonics' in signatures[s]:
-                    nm = signatures[s]['num_mnemonics']
-                    m = match[:nm]
-                    sig = signatures[s]['mnemonics'][:nm]
-                else:
-                    m = match[:NUM_MNEM]
-                    sig = signatures[s]['mnemonics'][:NUM_MNEM]
-                distance = tapered_levenshtein(sig, m)
-                similarity = 1.0 - distance/float(max(len(sig), len(m)))
-                if similarity > THRESHOLD:
-                    if DIR_PROCESSING:
-                        print "[%s] [%s] (Edits: %s | Similarity: %0.3f) (%s)" %(f, s, distance, similarity, ' | '.join(additional_info))
-                    else:
-                        print "[%s] (Edits: %s | Similarity: %0.3f) (%s)" %(s, distance, similarity, ' | '.join(additional_info))
-                    if VERBOSE:
-                        print "%s\n%s\n" %(sig, m)
+                md = Cs(CS_ARCH_X86, mode)
+                match = []
+                for (address, size, mnemonic, op_str) in md.disasm_lite(data, 0x1000):
+                                match.append(mnemonic.encode('utf-8').strip())
+
+                for s in signatures:
+                    m = match
+                    sig = signatures[s]['mnemonics']
+                    if m[0] == sig[0] or THRESHOLD < .7:
+                        additional_info = []
+                        if 'minor_linker' in signatures[s]:
+                            if minor_linker == signatures[s]['minor_linker']:
+                                additional_info.append('Minor Linker Version Match: True')
+                            else:
+                                additional_info.append('Minor Linker Version Match: False')
+                        if 'major_linker' in signatures[s]:
+                            if major_linker == signatures[s]['major_linker']:
+                                additional_info.append('Major Linker Version Match: True')
+                            else:
+                                additional_info.append('Major Linker Version Match: False')
+                        if 'numberofsections' in signatures[s]:
+                            if nos == signatures[s]['numberofsections']:
+                                additional_info.append('Number Of Sections Match: True')
+                            else:
+                                additional_info.append('Number Of Sections Match: False')
+
+                        if 'num_mnemonics' in signatures[s]:
+                            nm = signatures[s]['num_mnemonics']
+                            m = match[:nm]
+                            sig = signatures[s]['mnemonics'][:nm]
+                        else:
+                            m = match[:NUM_MNEM]
+                            sig = signatures[s]['mnemonics'][:NUM_MNEM]
+                        distance = tapered_levenshtein(sig, m)
+                        similarity = 1.0 - distance/float(max(len(sig), len(m)))
+                        if similarity > THRESHOLD:
+                            if DIR_PROCESSING:
+                                print "[%s] [%s] (Edits: %s | Similarity: %0.3f) (%s)" %(f, s, distance, similarity, ' | '.join(additional_info))
+                            else:
+                                print "[%s] (Edits: %s | Similarity: %0.3f) (%s)" %(s, distance, similarity, ' | '.join(additional_info))
+                            if VERBOSE:
+                                print "%s\n%s\n" %(sig, m)
         except Exception as e:
             print str(e)
 
