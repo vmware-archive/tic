@@ -6,9 +6,11 @@
 import os
 import sys
 import glob
+import macholib.MachO
 import pefile
 import ConfigParser
-from capstone import *
+import struct
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
 from argparse import ArgumentParser
 
 def tapered_levenshtein(s1, s2):
@@ -96,81 +98,192 @@ def main():
         file_list.append(args.file[0])
 
     for f in file_list:
+        file_type = None
         if VERBOSE:
             print '[*] Processing: ' + f
         try:
-            pe = pefile.PE(f)
+            fe = pefile.PE(f)
+            file_type = 'PE'
         except Exception as e:
-            if VERBOSE or DIR_PROCESSING:
+            if VERBOSE:
                 sys.stderr.write("[*] Error with %s - %s\n" %(f, str(e)))
-            continue
 
-        try:
-            minor_linker = 0
-            major_linker = 0
+
+        if not file_type:
             try:
-                minor_linker = pe.OPTIONAL_HEADER.MinorLinkerVersion
-                major_linker = pe.OPTIONAL_HEADER.MajorLinkerVersion
+                fe = macholib.MachO.MachO(f)
+                file_type = 'MACHO'
+
             except Exception as e:
-                pass
-            if hasattr(pe, 'FILE_HEADER') and hasattr(pe.FILE_HEADER, 'NumberOfSections'):
-                nos = pe.FILE_HEADER.NumberOfSections
-            if hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'AddressOfEntryPoint'):
-                ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
-            if hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'ImageBase') and ep > 0:
-                ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
-                data = pe.get_memory_mapped_image()[ep:ep+BYTES]
-                #
-                # Determine if the file is 32bit or 64bit
-                #
+                if VERBOSE:
+                    sys.stderr.write("[*] Error with %s - %s\n" %(f, str(e)))
+
+        if not file_type:
+            sys.stderr.write("[*] Error with %s - not a PE or Mach-O\n" % f)
+
+
+
+        if file_type == 'PE':
+            try:
+                minor_linker = 0
+                major_linker = 0
+                try:
+                    minor_linker = fe.OPTIONAL_HEADER.MinorLinkerVersion
+                    major_linker = fe.OPTIONAL_HEADER.MajorLinkerVersion
+                except Exception as e:
+                    pass
+                if hasattr(fe, 'FILE_HEADER') and hasattr(fe.FILE_HEADER, 'NumberOfSections'):
+                    nos = fe.FILE_HEADER.NumberOfSections
+                if hasattr(fe, 'OPTIONAL_HEADER') and hasattr(fe.OPTIONAL_HEADER, 'AddressOfEntryPoint'):
+                    ep = fe.OPTIONAL_HEADER.AddressOfEntryPoint
+                if hasattr(fe, 'OPTIONAL_HEADER') and hasattr(fe.OPTIONAL_HEADER, 'ImageBase') and ep > 0:
+                    ep_ava = ep+fe.OPTIONAL_HEADER.ImageBase
+                    data = fe.get_memory_mapped_image()[ep:ep+BYTES]
+                    #
+                    # Determine if the file is 32bit or 64bit
+                    #
+                    mode = CS_MODE_32
+                    if fe.OPTIONAL_HEADER.Magic == 0x20b:
+                        mode = CS_MODE_64
+
+                    md = Cs(CS_ARCH_X86, mode)
+                    match = []
+                    for (address, size, mnemonic, op_str) in md.disasm_lite(data, 0x1000):
+                        match.append(mnemonic.encode('utf-8').strip())
+
+                    for s in signatures:
+                        m = match
+                        sig = signatures[s]['mnemonics']
+                        if m and m[0] == sig[0] or THRESHOLD < .7:
+                            additional_info = []
+                            if 'minor_linker' in signatures[s]:
+                                if minor_linker == signatures[s]['minor_linker']:
+                                    additional_info.append('Minor Linker Version Match: True')
+                                else:
+                                    additional_info.append('Minor Linker Version Match: False')
+                            if 'major_linker' in signatures[s]:
+                                if major_linker == signatures[s]['major_linker']:
+                                    additional_info.append('Major Linker Version Match: True')
+                                else:
+                                    additional_info.append('Major Linker Version Match: False')
+                            if 'numberofsections' in signatures[s]:
+                                if nos == signatures[s]['numberofsections']:
+                                    additional_info.append('Number Of Sections Match: True')
+                                else:
+                                    additional_info.append('Number Of Sections Match: False')
+
+                            if 'num_mnemonics' in signatures[s]:
+                                nm = signatures[s]['num_mnemonics']
+                                m = match[:nm]
+                                sig = signatures[s]['mnemonics'][:nm]
+                            else:
+                                m = match[:NUM_MNEM]
+                                sig = signatures[s]['mnemonics'][:NUM_MNEM]
+                            distance = tapered_levenshtein(sig, m)
+                            similarity = 1.0 - distance/float(max(len(sig), len(m)))
+                            if similarity > THRESHOLD:
+                                if DIR_PROCESSING:
+                                    print "[%s] [%s] (Edits: %s | Similarity: %0.3f) (%s)" %(f, s, distance, similarity, ' | '.join(additional_info))
+                                else:
+                                    print "[%s] (Edits: %s | Similarity: %0.3f) (%s)" %(s, distance, similarity, ' | '.join(additional_info))
+                                if VERBOSE:
+                                    print "%s\n%s\n" %(sig, m)
+            except Exception as e:
+                print str(e)
+        elif file_type == 'MACHO':
+            macho_file = open(f, 'rb')
+            macho_data = macho_file.read()
+            macho_file.close()
+            for header in fe.headers:
+                # Limit it to X86
+                if header.header.cputype not in [7, 0x01000007]:
+                    continue
+
+                # Limit it to Object and Executable files
+                if header.header.filetype not in [1, 2]:
+                    continue
+
+                magic = int(header.MH_MAGIC)
+                offset = int(header.offset)
+
+                all_sections = []
+                entrypoint_type = ''
+                entrypoint_address = 0
+                for cmd in header.commands:
+                    load_cmd = cmd[0]
+                    cmd_info = cmd[1]
+                    cmd_data = cmd[2]
+                    cmd_name = load_cmd.get_cmd_name()
+                    if cmd_name in ('LC_SEGMENT', 'LC_SEGMENT_64'):
+                        for section_data in cmd_data:
+                            sd = section_data.describe()
+                            all_sections.append(sd)
+
+                    elif cmd_name in ('LC_THREAD', 'LC_UNIXTHREAD'):
+                        entrypoint_type = 'old'
+                        flavor = int(struct.unpack(header.endian + 'I', cmd_data[0:4])[0])
+                        count = int(struct.unpack(header.endian + 'I', cmd_data[4:8])[0])
+                        if flavor == 1:
+                            entrypoint_address = int(struct.unpack(header.endian + 'I', cmd_data[48:52])[0])
+                        elif flavor == 4:
+                            entrypoint_address = int(struct.unpack(header.endian + 'Q', cmd_data[136:144])[0])
+
+                    elif cmd_name == 'LC_MAIN':
+                        entrypoint_type = 'new'
+                        entrypoint_address = cmd_info.describe()['entryoff']
+
+                entrypoint_data = ''
+                if entrypoint_type == 'new':
+                    entrypoint_offset = offset + entrypoint_address
+                    entrypoint_data = macho_data[entrypoint_offset:entrypoint_offset+500]
+                elif entrypoint_type == 'old':
+                    found_section = False
+                    for sec in all_sections:
+                        if entrypoint_address >= sec['addr'] and entrypoint_address < (sec['addr'] + sec['size']):
+                            found_section = True
+                            entrypoint_address = (entrypoint_address - sec['addr']) + sec['offset']
+                            break
+
+                    if found_section:
+                        entrypoint_offset = offset + entrypoint_address
+                        entrypoint_data = macho_data[entrypoint_offset:entrypoint_offset+500]
+
                 mode = CS_MODE_32
-                if pe.OPTIONAL_HEADER.Magic == 0x20b:
+                if magic == 0xcffaedfe:
                     mode = CS_MODE_64
 
                 md = Cs(CS_ARCH_X86, mode)
                 match = []
-                for (address, size, mnemonic, op_str) in md.disasm_lite(data, 0x1000):
-                                match.append(mnemonic.encode('utf-8').strip())
+                if entrypoint_data:
+                    try:
+                        for (address, size, mnemonic, op_str) in md.disasm_lite(entrypoint_data, 0x1000):
+                            match.append(mnemonic.encode('utf-8').strip())
+                    except Exception as e:
+                        print str(e)
 
-                for s in signatures:
-                    m = match
-                    sig = signatures[s]['mnemonics']
-                    if m[0] == sig[0] or THRESHOLD < .7:
-                        additional_info = []
-                        if 'minor_linker' in signatures[s]:
-                            if minor_linker == signatures[s]['minor_linker']:
-                                additional_info.append('Minor Linker Version Match: True')
+                    for s in signatures:
+                        m = match
+                        sig = signatures[s]['mnemonics']
+                        if m and m[0] == sig[0] or THRESHOLD < .7:
+                            additional_info = []
+                            if 'num_mnemonics' in signatures[s]:
+                                nm = signatures[s]['num_mnemonics']
+                                m = match[:nm]
+                                sig = signatures[s]['mnemonics'][:nm]
                             else:
-                                additional_info.append('Minor Linker Version Match: False')
-                        if 'major_linker' in signatures[s]:
-                            if major_linker == signatures[s]['major_linker']:
-                                additional_info.append('Major Linker Version Match: True')
-                            else:
-                                additional_info.append('Major Linker Version Match: False')
-                        if 'numberofsections' in signatures[s]:
-                            if nos == signatures[s]['numberofsections']:
-                                additional_info.append('Number Of Sections Match: True')
-                            else:
-                                additional_info.append('Number Of Sections Match: False')
+                                m = match[:NUM_MNEM]
+                                sig = signatures[s]['mnemonics'][:NUM_MNEM]
 
-                        if 'num_mnemonics' in signatures[s]:
-                            nm = signatures[s]['num_mnemonics']
-                            m = match[:nm]
-                            sig = signatures[s]['mnemonics'][:nm]
-                        else:
-                            m = match[:NUM_MNEM]
-                            sig = signatures[s]['mnemonics'][:NUM_MNEM]
-                        distance = tapered_levenshtein(sig, m)
-                        similarity = 1.0 - distance/float(max(len(sig), len(m)))
-                        if similarity > THRESHOLD:
-                            if DIR_PROCESSING:
-                                print "[%s] [%s] (Edits: %s | Similarity: %0.3f) (%s)" %(f, s, distance, similarity, ' | '.join(additional_info))
-                            else:
-                                print "[%s] (Edits: %s | Similarity: %0.3f) (%s)" %(s, distance, similarity, ' | '.join(additional_info))
-                            if VERBOSE:
-                                print "%s\n%s\n" %(sig, m)
-        except Exception as e:
-            print str(e)
+                            distance = tapered_levenshtein(sig, m)
+                            similarity = 1.0 - distance/float(max(len(sig), len(m)))
+                            if similarity > THRESHOLD:
+                                if DIR_PROCESSING:
+                                    print "[%s] [%s] (Edits: %s | Similarity: %0.3f) (%s)" %(f, s, distance, similarity, ' | '.join(additional_info))
+                                else:
+                                    print "[%s] (Edits: %s | Similarity: %0.3f) (%s)" %(s, distance, similarity, ' | '.join(additional_info))
+                                if VERBOSE:
+                                    print "%s\n%s\n" %(sig, m)
+
 
 if __name__ == "__main__":
     main()

@@ -120,3 +120,16 @@ mnemonics = mov,push,mov,cmp,jne,call,push,mov,mov,call,pop,pop,ret,mov,push,mov
 
 [Microsoft : AntiMalware Definition Update]
 mnemonics = mov,push,mov,and,sub,mov,xor,mov,push,xor,mov,push,push,mov,mov,mov,mov,mov,mov,mov,call,push,call,test,je,push,push,call,test,je
+
+[Apple utild ls]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,lea,mov,test,jg,call,lea,xor,call,mov,mov,call,test,je,mov,lea,call,test,je,cmp,je
+
+[Apple utils zsh]
+mnemonics = push,mov,pop,jmp,nop,nop,push,mov,lea,mov,xor,call,lea,mov,lea,mov,mov,mov,mov,mov,mov,mov,mov,mov,lea,mov,mov,lea,mov,mov
+
+[Apple utils /bin/test]
+mnemonics = push,mov,push,push,push,push,mov,mov,mov,test,je,lea,call,test,jne,dec,movsxd,mov,lea,call,test,jne,mov,dec,cmp,jbe,add,mov,mov,mov
+
+[Apple utils /bin/bash]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,lea,mov,call,test,jne,lea,lea,call,mov,call,jmp,mov,call,cmp,jne,call,call,mov,cmp
+
