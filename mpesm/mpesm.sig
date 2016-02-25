@@ -121,15 +121,75 @@ mnemonics = mov,push,mov,cmp,jne,call,push,mov,mov,call,pop,pop,ret,mov,push,mov
 [Microsoft : AntiMalware Definition Update]
 mnemonics = mov,push,mov,and,sub,mov,xor,mov,push,xor,mov,push,push,mov,mov,mov,mov,mov,mov,mov,call,push,call,test,je,push,push,call,test,je
 
-[Apple utild ls]
-mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,lea,mov,test,jg,call,lea,xor,call,mov,mov,call,test,je,mov,lea,call,test,je,cmp,je
+[Macho UPX]
+mnemonics = call,push,push,push,push,add,push,mov,mov,xor,xor,or,call,add,je,ret,mov,sub,adc,mov,ret,lea,cmp,mov,jbe,cmp,ja,sub,mov,add
 
-[Apple utils zsh]
-mnemonics = push,mov,pop,jmp,nop,nop,push,mov,lea,mov,xor,call,lea,mov,lea,mov,mov,mov,mov,mov,mov,mov,mov,mov,lea,mov,mov,lea,mov,mov
+[OSX Malware Group 1]
+mnemonics = push,mov,xor,pop,ret,push,mov,xor,pop,ret,push,mov,mov,test,jne,mov,mov,mov,mov,mov,mov,test,jne,mov,mov,mov,mov,mov,mov,test
 
-[Apple utils /bin/test]
-mnemonics = push,mov,push,push,push,push,mov,mov,mov,test,je,lea,call,test,jne,dec,movsxd,mov,lea,call,test,jne,mov,dec,cmp,jbe,add,mov,mov,mov
+[OSX Malware Group 2]
+mnemonics = call,jmp,pop,pop,pop,xchg,pushal,mov,jmp,pushal,mov,mov,or,jmp,nop,nop,nop,nop,nop,mov,inc,mov,inc,add,jne,mov,sub,adc,mov,jb
 
-[Apple utils /bin/bash]
-mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,lea,mov,call,test,jne,lea,lea,call,mov,call,jmp,mov,call,cmp,jne,call,call,mov,cmp
+[OSX Malware Group 3]
+mnemonics = call,pushal,mov,mov,or,jmp,nop,nop,nop,nop,nop,mov,inc,mov,inc,add,jne,mov,sub,adc,mov,jb,mov,add,jne,mov,sub,adc,adc,add
+
+[OSX Malware Group 4]
+mnemonics = push,mov,and,mov,lea,mov,add,shl,add,call,hlt,push,mov,push,push,push,push,sub,mov,mov,mov,mov,mov,mov,mov,test,jne,lea,mov,mov
+
+[OSX Malware Group 5]
+mnemonics = push,mov,and,mov,lea,mov,add,shl,add,mov,jmp,add,cmp,jne,add,call,mov,call,hlt,nop,nop,nop,nop,push,mov,sub,mov,mov,mov,lea
+
+[OSX Malware Group 6]
+mnemonics = push,mov,and,mov,lea,mov,add,shl,add,mov,jmp,add,cmp,jne,add,call,mov,call,hlt,push,mov,push,push,push,push,mov,mov,call,mov,lea
+
+[OSX Malware Group 7]
+mnemonics = push,mov,and,sub,mov,mov,lea,mov,add,shl,add,mov,mov,add,test,jne,mov,call,mov,call,hlt,push,mov,mov,mov,mov,mov,mov,mov,pop
+
+[OSX Malware Group 8]
+mnemonics = push,mov,mov,leave,ret,push,mov,push,push,push,sub,mov,mov,test,je,mov,mov,call,mov,xor,jmp,mov,mov,mov,mov,call,mov,test,je,mov
+
+[OSX Malware Group 9]
+mnemonics = push,mov,mov,pop,jmp,push,mov,xor,pop,jmp,nop,push,mov,mov,pop,ret,push,mov,push,push,sub,mov,mov,test,je,mov,mov,call,test,jle
+
+[OSX Malware Group 10]
+mnemonics = push,mov,pop,jmp,nop,nop,nop,nop,nop,nop,nop,nop,nop,nop,nop,nop,nop,push,mov,push,push,mov,mov,call,mov,mov,mov,call,mov,cmp
+
+[OSX Malware Group 11]
+mnemonics = push,mov,pop,jmp,nop,nop,nop,push,mov,push,push,mov,mov,call,mov,mov,mov,call,mov,cmp,je,pop,pop,pop,ret,mov,mov,mov,call,mov
+
+[OSX Malware Group 12]
+mnemonics = push,mov,pop,jmp,push,mov,push,push,mov,mov,call,mov,mov,mov,call,cmp,je,pop,pop,pop,ret,mov,mov,pop,pop,pop,jmp,push,mov,push
+
+[OSX Malware Group 13]
+mnemonics = push,mov,push,push,push,push,mov,mov,mov,call,mov,call,mov,mov,mov,call,mov,mov,call,mov,mov,mov,mov,call,mov,mov,mov,call,mov,mov
+
+[OSX Malware Group 14]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,call,mov,lea,call,mov,test,je,mov,mov,mov,lea,lea,lea,call,mov,cmp,jb,jne,cmp
+
+[OSX Malware Group 15]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,mov,mov,call,mov,lea,call,mov,test,je,mov,mov,mov,lea,lea,lea,call,mov,cmp,jb
+
+[OSX Malware Group 16]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,mov,mov,lea,call,lea,lea,mov,call,lea,lea,call,lea,call,lea,lea,mov,call,lea,lea
+
+[OSX Malware Group 17]
+mnemonics = push,mov,push,push,push,push,push,sub,mov,mov,mov,mov,mov,lea,call,mov,mov,lea,mov,movabs,mov,movabs,mov,movabs,mov,movabs,mov,movabs,mov,mov
+
+[OSX Malware Group 18]
+mnemonics = push,mov,push,push,sub,call,mov,mov,mov,mov,mov,mov,mov,mov,call,lea,xor,xor,call,lea,mov,call,mov,mov,lea,call,mov,call,mov,call
+
+[OSX Malware Group 19]
+mnemonics = push,mov,sub,lea,mov,mov,mov,mov,mov,mov,mov,mov,call,mov,mov,call,mov,mov,mov,mov,call,mov,call,cmp,jne,cmp,jne,cmp,jne,cmp
+
+[OSX Malware Group 20]
+mnemonics = push,mov,sub,mov,mov,mov,call,mov,mov,mov,mov,mov,call,mov,mov,call,jmp,movsd,mov,mov,mov,call,jmp,nop,push,mov,sub,mov,mov,mov
+
+[OSX Malware Group 21]
+mnemonics = push,mov,sub,mov,mov,mov,mov,mov,call,add,pop,ret,jmp,jmp,jmp,jmp,lea,push,jmp,nop,push,jmp,push,jmp,push,jmp,push,jmp
+
+[OSX Malware Group 22]
+mnemonics = push,mov,sub,mov,mov,mov,mov,mov,call,add,pop,ret,nop,nop,nop,nop,nop,nop,nop,nop,push,mov,sub,lea,lea,mov,mov,mov,mov,mov
+
+[OSX Malware Group 23]
+mnemonics = push,mov,sub,xor,mov,xorps,mov,mov,mov,movsd,mov,call,mov,mov,call,xor,mov,lea,mov,call,mov,xor,mov,mov,lea,mov,call,mov,lea,mov
 
